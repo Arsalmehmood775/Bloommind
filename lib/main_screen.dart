@@ -13,14 +13,17 @@ import 'admin_panel.dart';
 import 'mood_booster.dart';
 import 'therapist_selection_screen.dart';
 import 'HelpScreen.dart';
+import 'survey_screen.dart';
 
 
 
 class MainScreen extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
+  
 }
 class _HomePageState extends State<MainScreen> {
+  bool showRetakeSurveyButton = false; // ✅ flag to show retake survey button
   String userName = "";
   String? profileImageBase64;
   bool _isAdmin = false; // ✅ check if current user is admin
@@ -28,10 +31,38 @@ class _HomePageState extends State<MainScreen> {
   void initState() {
     super.initState();
     _listenToUserChanges();
-    _checkAdminStatus(); // ✅ fetch admin status
+    _checkAdminStatus();
+    checkRetakeSurveyEligibility(); // ✅ fetch admin status
   }
 
 
+Future<bool> canRetakeSurvey() async {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+
+  if (uid == null) return false;
+
+  final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+  if (!doc.exists || !doc.data()!.containsKey('lastsurveyDate')) {
+    print('No survey date found for user ');
+    return true;
+  }
+
+  final lastSurveyDate = (doc['lastsurveyDate'] as Timestamp).toDate();
+  final now = DateTime.now();
+
+  print('Last survey date: $lastSurveyDate, Current date: $now');
+  print("today: $now");
+  print("diffrence: ${now.difference(lastSurveyDate).inDays} days");
+
+  return now.difference(lastSurveyDate).inDays >= 7;
+}
+void checkRetakeSurveyEligibility() async {
+  final result = await canRetakeSurvey();
+  setState(() {
+    showRetakeSurveyButton = result;
+  });
+}
   void _listenToUserChanges() {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -421,11 +452,35 @@ class _HomePageState extends State<MainScreen> {
                                 Navigator.push(
                                     context,
                                     MaterialPageRoute(builder: (context)=> QuotePage()));
+
+                                    
                               },
                             ),
                           ),
                         ],
                       ),
+                      SizedBox(height: 20),
+                      if (showRetakeSurveyButton)
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
+    child: ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.teal,
+        minimumSize: const Size(double.infinity, 50),
+      ),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SurveyScreen()),
+        );
+      },
+      icon: const Icon(Icons.refresh, color: Colors.white),
+      label: const Text(
+        "Retake Mental Health Survey",
+        style: TextStyle(color: Colors.white),
+      ),
+    ),
+  ),
                     ],
                   ),
                 )
@@ -525,7 +580,7 @@ class _AnimatedMenuButtonState extends State<AnimatedMenuButton>
                         Icon(
                           widget.icon,
                           color: Colors.white,
-                          size: (widget.label == "GOAL TRAINER" || widget.label == "QUOTE") ? 28 : 20,
+                          size: (widget.label == "GOAL TRAINER" || widget.label == "QUOTE") ? 28 : 30,
                         ),
                       ],
                     ],

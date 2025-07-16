@@ -6,7 +6,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'survey_question_widget.dart';
 import 'survey_result.dart';
 import 'therapist_profile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
+Future<void> saveSurveyDateAndCommunity(String communityLevel) async {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  final now = DateTime.now();
+
+  await FirebaseFirestore.instance.collection('users').doc(uid).set({
+    'lastsurveyDate': now,
+    'communityLevel': communityLevel,
+  }, SetOptions(merge: true));
+}
 
 class SurveyScreen extends StatefulWidget {
   const SurveyScreen({super.key});
@@ -17,30 +27,26 @@ class SurveyScreen extends StatefulWidget {
 
 class _SurveyScreenState extends State<SurveyScreen> {
   final List<String> questions = [
-    // Emotional & Mood
     "I feel overwhelmed by small tasks or daily routines.",
     "I struggle to find motivation for things I used to enjoy.",
     "I feel anxious or worried without a clear reason.",
     "My mood changes quickly without warning.",
     "I feel hopeless about the future.",
-    // Thought Patterns
     "I find it hard to focus or concentrate on tasks.",
     "My thoughts are racing, and I can’t slow them down.",
     "I often question my self-worth or feel like a failure.",
     "I overthink simple things more than usual.",
     "I feel emotionally numb or disconnected from my surroundings.",
-      // Behavior
-      "I avoid social interactions or prefer staying alone.",
-      "I feel unusually tired, even after resting.",
-      "I find it hard to start or complete tasks.",
-      "I feel restless or agitated without a reason.",
-      "I get irritated or angry more easily than before.",
-      // Sleep & Health
-      "I have trouble falling or staying asleep.",
-      "I wake up feeling unrefreshed or exhausted.",
-      "I experience unexplained physical aches or pains.",
-      "My appetite has changed (eating too much or too little).",
-      "I feel like I’m just “surviving,” not really living.",
+    "I avoid social interactions or prefer staying alone.",
+    "I feel unusually tired, even after resting.",
+    "I find it hard to start or complete tasks.",
+    "I feel restless or agitated without a reason.",
+    "I get irritated or angry more easily than before.",
+    "I have trouble falling or staying asleep.",
+    "I wake up feeling unrefreshed or exhausted.",
+    "I experience unexplained physical aches or pains.",
+    "My appetite has changed (eating too much or too little).",
+    "I feel like I’m just “surviving,” not really living.",
   ];
 
   List<int> responses = List.generate(20, (_) => -1);
@@ -57,15 +63,19 @@ class _SurveyScreenState extends State<SurveyScreen> {
         context: context,
         builder: (_) => AlertDialog(
           backgroundColor: Colors.white,
-          title: Text("One last question", style: GoogleFonts.poppins(color: Colors.black), ),
+          title: Text("One last question", style: GoogleFonts.poppins(color: Colors.black)),
           content: Text("Would you like to speak to a specialist if needed?",
               style: GoogleFonts.poppins(color: Colors.black)),
           actions: [
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                debugPrint("❌ NO clicked — wantsSpecialist = false");
                 wantsSpecialist = false;
                 Navigator.pop(context);
-                finishSurvey(); // go directly
+                await Future.delayed(const Duration(milliseconds: 200));
+                if (mounted) {
+                  finishSurvey();
+                }
               },
               child: Text("No", style: GoogleFonts.poppins(color: Colors.black)),
             ),
@@ -77,31 +87,25 @@ class _SurveyScreenState extends State<SurveyScreen> {
                 ),
               ),
               onPressed: () async {
+                debugPrint("✅ YES clicked — wantsSpecialist = true");
                 wantsSpecialist = true;
-
-                Navigator.pop(context); // Close the dialog first
-
-                // Wait a short delay before pushing to allow dialog to fully close
+                Navigator.pop(context);
                 await Future.delayed(const Duration(milliseconds: 300));
-
-                // Navigate to therapist profile screen
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => TherapistSelectionScreen(), // new screen below
+                    builder: (_) => TherapistSelectionScreen(),
                   ),
                 );
-
-                // After they return from therapist screen, submit survey
-                finishSurvey();
+                if (mounted) {
+                  finishSurvey();
+                }
               },
-
               child: Text("Yes", style: GoogleFonts.poppins(color: Colors.white)),
             ),
           ],
         ),
       );
-
     }
   }
 
@@ -112,9 +116,9 @@ class _SurveyScreenState extends State<SurveyScreen> {
     return "Severe";
   }
 
-
-
   void finishSurvey() async {
+    debugPrint("📍 finishSurvey called, wantsSpecialist = $wantsSpecialist");
+
     int totalScore = responses.fold(0, (sum, value) => sum + (value >= 0 ? value : 0));
 
     String stressLevel;
@@ -133,17 +137,26 @@ class _SurveyScreenState extends State<SurveyScreen> {
       wantsSpecialist: wantsSpecialist,
     );
 
-    // Navigate to result screen
+    String communityLevel = stressLevel == "Mild"
+        ? "green"
+        : stressLevel == "Moderate"
+            ? "yellow"
+            : "red";
+
+    await saveSurveyDateAndCommunity(communityLevel);
+
+    debugPrint("➡️ Navigating to SurveyResult screen");
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SurveyResult(score: totalScore, wantsSpecialist: wantsSpecialist),
+        builder: (_) => SurveyResult(
+          score: totalScore,
+          wantsSpecialist: wantsSpecialist,
+        ),
       ),
     );
   }
-
-
-
 
   void onOptionSelected(int value) {
     setState(() {

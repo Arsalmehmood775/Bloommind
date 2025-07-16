@@ -1,5 +1,26 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart';  // Importing LoginPage for navigation
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:bloommind/survey_screen.dart';
+import 'package:bloommind/main_screen.dart';
+import 'login_page.dart'; 
+
+Future<bool> shouldShowSurvey() async {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+
+  if (uid == null) return true; // no user? show survey
+
+  final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+  if (!doc.exists || !doc.data()!.containsKey('lastsurveyDate')) {
+    return true; // new user or missing survey date
+  }
+
+  final lastSurveyDate = (doc['lastsurveyDate'] as Timestamp).toDate();
+  final now = DateTime.now();
+
+  return now.difference(lastSurveyDate).inDays >= 7;
+} // Importing LoginPage for navigation
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -14,29 +35,26 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _fadeAnimation;
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
+  checkSurveyAndNavigate();
+}
 
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
+void checkSurveyAndNavigate() async {
+  final showSurvey = await shouldShowSurvey();
+
+  if (showSurvey) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => SurveyScreen()),
     );
-
-    _fadeAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
+  } else {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => MainScreen()), // your app's main screen
     );
-
-    _animationController.forward();
-
-    // Navigate to the login page after the animation completes
-    Future.delayed(const Duration(seconds: 4), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginPage()), // Navigate to LoginPage
-      );
-    });
   }
+}
 
   @override
   void dispose() {

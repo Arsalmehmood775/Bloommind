@@ -1,3 +1,5 @@
+// All imports same as before
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+// ----------------------- PROFILE SCREEN -----------------------
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -28,7 +31,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadUserProfile();
-    _checkNotificationPermission();
   }
 
   Future<void> _loadUserProfile() async {
@@ -46,13 +48,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _checkNotificationPermission() async {
-    final status = await Permission.notification.status;
-    setState(() {
-      _notificationsEnabled = status.isGranted;
-    });
-  }
-
   Future<void> _changeProfilePicture() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -66,7 +61,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _base64Image = base64String;
       });
 
-      // Save to Firestore
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
@@ -87,24 +81,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _toggleNotifications(bool value) async {
-    if (value) {
-      final status = await Permission.notification.request();
-      if (status.isGranted) {
-        setState(() {
-          _notificationsEnabled = true;
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Notification permission is required.")),
-        );
-      }
-    } else {
-      setState(() {
-        _notificationsEnabled = false;
-      });
-      // Optionally: You might want to disable notifications in your backend here
-    }
+  void _toggleNotifications() {
+    setState(() {
+      _notificationsEnabled = !_notificationsEnabled;
+    });
   }
 
   void _editProfile() async {
@@ -146,91 +126,132 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final imageWidget = _profileImage != null
         ? FileImage(_profileImage!)
         : (_base64Image != null
-        ? MemoryImage(base64Decode(_base64Image!.split(',').last))
-        : null);
+            ? MemoryImage(base64Decode(_base64Image!.split(',').last))
+            : null);
 
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
         backgroundColor: Colors.teal,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            color: Colors.teal
-          ),
-        ),
         title: const Text("Profile", style: TextStyle(color: Colors.white)),
         centerTitle: true,
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-        ),
+      backgroundColor: Colors.white,
+      body: ListView(
+        padding: const EdgeInsets.all(20.0),
+        children: [
+          GestureDetector(
+            onTap: _requestStorageAndCameraPermissions,
+            child: Center(
+              child: CircleAvatar(
+                radius: 60,
+                backgroundImage: imageWidget as ImageProvider?,
+                child: imageWidget == null
+                    ? const Icon(Icons.person, size: 60, color: Colors.white)
+                    : null,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(_username,
+                style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold)),
+          ),
+          Center(
+            child: Text(_email,
+                style: GoogleFonts.poppins(fontSize: 16, color: Colors.black54)),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _editProfile,
+            icon: const Icon(Icons.edit, color: Colors.white),
+            label: const Text("Edit Profile", style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SwitchListTile(
+            title: const Text("Notifications"),
+            value: _notificationsEnabled,
+            onChanged: (_) => _toggleNotifications(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.lock_outline, color: Colors.black),
+            title: const Text("Privacy & Security"),
+            onTap: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const PrivacySecurityScreen()));
+            },
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(Icons.description_outlined, color: Colors.black),
+            title: const Text("View Terms & Privacy Policy"),
+            onTap: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const TermsAndPrivacyScreen()));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text("Logout", style: TextStyle(color: Colors.red)),
+            onTap: _logout,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------- TERMS SCREEN -----------------------
+
+class TermsAndPrivacyScreen extends StatelessWidget {
+  const TermsAndPrivacyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Terms & Privacy Policy", style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.teal,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: ListView(
-          padding: const EdgeInsets.all(20.0),
-          children: [
-            GestureDetector(
-              onTap: _requestStorageAndCameraPermissions,
-              child: Center(
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundImage: imageWidget as ImageProvider?,
-                  child: imageWidget == null
-                      ? Icon(Icons.person, size: 60, color: Colors.white,)
-                      : null,
-                ),
-              ),
+          children: const [
+            Text("BloomMind - Terms of Use",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+            SizedBox(height: 10),
+            Text(
+              "By using BloomMind, you agree not to misuse any part of the app, including diary, surveys, and community chats. "
+              "You must be at least 18 years old to use this app. We reserve the right to suspend accounts violating these terms.",
+              style: TextStyle(color: Colors.teal),
             ),
-            const SizedBox(height: 16),
-            Center(
-              child: Text(_username, style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal)),
+            SizedBox(height: 20),
+            Text("Privacy Policy",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+            SizedBox(height: 10),
+            Text(
+              "BloomMind values your privacy. We collect minimal data — including your mood surveys, diary entries, and chat messages — solely to improve your well-being experience. "
+              "None of your personal data is shared with third parties. You may request data deletion at any time.",
+              style: TextStyle(color: Colors.teal),
             ),
-            Center(
-              child: Text(_email, style: GoogleFonts.poppins(fontSize: 16, color: Colors.white,)),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _editProfile,
-              icon: const Icon(Icons.edit,color: Colors.white,),
-              label: Text("Edit Profile", style: TextStyle(color: Colors.white,)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SwitchListTile(
-              title: Text("Notifications", style: TextStyle(color: Colors.teal)),
-              value: _notificationsEnabled,
-              onChanged: _toggleNotifications,  // Fixed: Now using the correct function
-            ),
-            ListTile(
-              leading: const Icon(Icons.lock_outline, color: Colors.teal),
-              title: const Text("Privacy & Security", style: TextStyle(color: Colors.teal)),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacySecurityScreen()));
-              },
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.description_outlined, color: Colors.teal),
-              title: const Text("View Terms & Privacy Policy", style: TextStyle(color: Colors.teal)),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsAndPrivacyScreen()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text("Logout", style: TextStyle(color: Colors.red)),
-              onTap: _logout,
-            ),
+            SizedBox(height: 20),
+            Text("Contact",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+            SizedBox(height: 10),
+            Text("For any concerns, contact support@bloommind.app",
+                style: TextStyle(color: Colors.teal)),
           ],
         ),
       ),
     );
   }
 }
+
+// ----------------------- PRIVACY SCREEN -----------------------
 
 class PrivacySecurityScreen extends StatelessWidget {
   const PrivacySecurityScreen({Key? key}) : super(key: key);
@@ -239,55 +260,125 @@ class PrivacySecurityScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Privacy & Security'),
+        title: const Text("Privacy & Security", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.teal,
       ),
-      body: const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text(
-          'Here are the Privacy & Security details...',
-          style: TextStyle(fontSize: 16),
+      body: Container(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.lock_reset, color: Colors.teal),
+              title: const Text("Change Password"),
+              onTap: () => _showPasswordResetDialog(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_forever, color: Colors.red),
+              title: const Text("Delete My Account"),
+              onTap: () => _confirmDeleteAccount(context),
+            ),
+          ],
         ),
       ),
     );
   }
-}
 
-class TermsAndPrivacyScreen extends StatelessWidget {
-  const TermsAndPrivacyScreen({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Terms & Privacy Policy'),
-        backgroundColor: Colors.teal,
-      ),
-      body: const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text(
-          'Here are the Terms and Privacy Policy details...',
-          style: TextStyle(fontSize: 16),
+  void _showPasswordResetDialog(BuildContext context) {
+    final TextEditingController emailController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Reset Password"),
+        content: TextField(
+          controller: emailController,
+          decoration: const InputDecoration(labelText: "Enter your email"),
         ),
+        actions: [
+          TextButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            child: const Text("Send Reset Link"),
+            onPressed: () async {
+              final email = emailController.text.trim();
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Reset link sent to your email.")),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Error: ${e.toString()}")),
+                );
+              }
+            },
+          ),
+        ],
       ),
     );
   }
+
+  void _confirmDeleteAccount(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Account"),
+        content: const Text("Are you sure you want to permanently delete your account and all data?"),
+        actions: [
+          TextButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete"),
+            onPressed: () => _deleteAccount(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final uid = user.uid;
+      final firestore = FirebaseFirestore.instance;
+
+      await firestore.collection('users').doc(uid).delete();
+      await firestore.collection('survey_results').doc(uid).delete();
+      await user.delete();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Account deleted successfully.")),
+      );
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error deleting account: $e")),
+      );
+    }
+  }
 }
 
-// Dummy EditProfileScreen implementation to resolve the error.
-// Replace this with your actual EditProfileScreen implementation if you have one.
+// ----------------------- EDIT PROFILE SCREEN -----------------------
+
 class EditProfileScreen extends StatefulWidget {
   final String initialUsername;
   final String initialEmail;
 
   const EditProfileScreen({
-    Key? key,
     required this.initialUsername,
     required this.initialEmail,
-  }) : super(key: key);
+  });
 
   @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
+  _EditProfileScreenState createState() => _EditProfileScreenState();
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
@@ -309,17 +400,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _saveChanges() {
-    Navigator.pop(context, {
-      'username': _usernameController.text,
-      'email': _emailController.text,
-    });
+    String updatedUsername = _usernameController.text;
+    String updatedEmail = _emailController.text;
+
+    Navigator.pop(
+      context,
+      {'username': updatedUsername, 'email': updatedEmail},
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Edit Profile"),
+        title: const Text("Edit Profile", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.teal,
       ),
       body: Padding(

@@ -1,4 +1,5 @@
 import 'package:bloommind/therapist_profile.dart';
+import 'package:bloommind/survey_result.dart'; // Import the survey result screen
 import 'package:flutter/material.dart';
 
 class TherapistSelectionScreen extends StatelessWidget {
@@ -26,7 +27,14 @@ class TherapistSelectionScreen extends StatelessWidget {
     },
   ];
 
-  TherapistSelectionScreen({super.key});
+  final int score;
+  final bool wantsSpecialist;
+
+  TherapistSelectionScreen({
+    Key? key,
+    this.score = 0,
+    this.wantsSpecialist = true,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +60,7 @@ class TherapistSelectionScreen extends StatelessWidget {
             children: [
               const Text(
                 "Available Therapists",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold,color: Colors.teal),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.teal),
               ),
               const SizedBox(height: 10),
               SizedBox(
@@ -102,7 +110,29 @@ class TherapistSelectionScreen extends StatelessWidget {
                   },
                 ),
               ),
+              const SizedBox(height: 20),
+              // 🔘 New Finish Survey Button
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SurveyResult(score: score, wantsSpecialist: wantsSpecialist),
+                    ),
+                  );
+                },
+                child: const Text("Finish Survey"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
               const SizedBox(height: 10),
+              // 🔘 Original Close Button (no changes)
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text("Close", style: TextStyle(fontSize: 16)),

@@ -5,8 +5,45 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'sign_up_page.dart';
 import 'forget_password_page.dart';
 import 'main_screen.dart';
+import 'survey_screen.dart';
 import 'package:google_fonts/google_fonts.dart'; // MainScreen
 
+Future<void> navigateAfterLogin(BuildContext context) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+  final userDoc = await userDocRef.get();
+
+  // ✅ If the user document doesn’t exist or has no lastsurveyDate field — FIRST TIME SURVEY
+  if (!userDoc.exists || !userDoc.data()!.containsKey('lastsurveyDate')) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const SurveyScreen()),
+    );
+    return;
+  }
+
+  // 🔁 Else, check the last survey date
+  final lastSurveyDate = (userDoc['lastsurveyDate'] as Timestamp).toDate();
+  final now = DateTime.now();
+
+  final daysSinceLastSurvey = now.difference(lastSurveyDate).inDays;
+
+
+
+  if (daysSinceLastSurvey >= 7) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const SurveyScreen()),
+    );
+  } else {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => MainScreen()),
+    );
+  }
+}
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
   @override
@@ -98,12 +135,7 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>  SurveyScreen()),
-                        );
+                        navigateAfterLogin(context); // Navigate to the main screen or survey
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
